@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e6b49">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Buy-In">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+</head>
+<body>
+<title>Buy-In Ledger</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+  /* Layout: one narrow column. Pot on top, roster to pick from, a tab per player in the game with one player's details open at a time, settlement under the button. */
+  :root {
+    --bg: #edf1ee;
+    --surface: #ffffff;
+    --fg: #15211b;
+    --muted: #5a6b62;
+    --line: #d6ded8;
+    --accent: #0e6b49;
+    --accent-fg: #ffffff;
+    --good: #12794f;
+    --bad: #b3261e;
+    --warn-bg: #fdf0d5;
+    --warn-fg: #6b4700;
+    --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+    --font-body: "Barlow", "Helvetica Neue", Arial, system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0c1410;
+      --surface: #15211b;
+      --fg: #e6eee8;
+      --muted: #8da398;
+      --line: #25352c;
+      --accent: #3fbf8a;
+      --accent-fg: #06130d;
+      --good: #5fd3a0;
+      --bad: #ff8f86;
+      --warn-bg: #3a2d0e;
+      --warn-fg: #f3d28a;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0c1410;
+    --surface: #15211b;
+    --fg: #e6eee8;
+    --muted: #8da398;
+    --line: #25352c;
+    --accent: #3fbf8a;
+    --accent-fg: #06130d;
+    --good: #5fd3a0;
+    --bad: #ff8f86;
+    --warn-bg: #3a2d0e;
+    --warn-fg: #f3d28a;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.4;
+    padding-inline: 16px;
+    padding-block: 20px 40px;
+  }
+  .wrap { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+  h1, h2 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+  h1 { font-size: 34px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; line-height: 1; }
+  h2 { font-size: 20px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+  .eyebrow { color: var(--muted); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+
+  .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+  .pot { text-align: right; }
+  .pot .num { font-family: var(--font-display); font-size: 40px; font-weight: 700; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+  label.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  input[type="text"], input[type="number"] {
+    font: inherit; font-size: 18px; color: var(--fg); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; height: 48px; width: 100%; min-width: 0;
+  }
+  input:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .money { position: relative; }
+  .money span { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 18px; pointer-events: none; }
+  .money input { padding-left: 30px; font-variant-numeric: tabular-nums; }
+
+  button { font: inherit; cursor: pointer; border: 0; border-radius: 10px; min-height: 48px; padding: 0 18px; font-weight: 600; }
+  button:disabled { opacity: 0.4; cursor: default; }
+  .btn-primary { background: var(--accent); color: var(--accent-fg); font-size: 18px; letter-spacing: 0.04em; }
+  .btn-primary:not(:disabled):active { filter: brightness(0.92); }
+  .btn-quiet { background: transparent; color: var(--muted); border: 1px solid var(--line); min-height: 44px; }
+
+  .add { display: flex; gap: 8px; }
+  .add input { flex: 1; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; min-height: 44px; padding: 0 16px; font-size: 17px; font-weight: 500; }
+  .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+  .badge { margin-left: 8px; font-family: var(--font-display); font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; opacity: 0.85; }
+
+  .player { border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 14px; background: var(--bg); }
+  .p-top { display: flex; align-items: center; gap: 8px; }
+  .p-name { flex: 1; min-width: 0; font-size: 22px; font-weight: 600; overflow-wrap: anywhere; }
+  .p-amt { font-family: var(--font-display); font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .p-bot { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .stepper { display: flex; align-items: center; gap: 4px; }
+  .stepper button { width: 52px; min-height: 52px; padding: 0; background: var(--surface); color: var(--fg); border: 1px solid var(--line); font-size: 28px; line-height: 1; }
+  .stepper button:active { background: var(--line); }
+  .stepper output { min-width: 48px; text-align: center; font-family: var(--font-display); font-size: 36px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .cash { width: 150px; }
+  .cash .money input { height: 52px; }
+
+  .empty { color: var(--muted); text-align: center; padding: 14px 8px; }
+  .hint { background: var(--warn-bg); color: var(--warn-fg); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+
+  .totals { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+
+  .results { display: flex; flex-direction: column; gap: 14px; }
+  .nets, .moves { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .nets li, .moves li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .nets li:first-child, .moves li:first-child { border-top: 0; }
+  .nets .sub { display: block; color: var(--muted); font-size: 13px; }
+  .amt { font-family: var(--font-display); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pos { color: var(--good); }
+  .neg { color: var(--bad); }
+  .moves .who { overflow-wrap: anywhere; }
+  .moves .arrow { color: var(--muted); padding: 0 4px; }
+  .warn { background: var(--warn-bg); color: var(--warn-fg); border-radius: 10px; padding: 12px; font-size: 15px; }
+  .status { color: var(--muted); font-size: 14px; min-height: 1.4em; }
+  .foot { display: flex; justify-content: center; }
+
+  @media (prefers-reduced-motion: no-preference) { button { transition: filter .12s, background .12s; } }
+</style>
+
+<main class="wrap">
+  <header class="head">
+    <div>
+      <div class="eyebrow">Home game</div>
+      <h1>Buy-In Ledger</h1>
+    </div>
+    <div class="pot">
+      <div class="eyebrow">Pot</div>
+      <div class="num" id="pot">$0</div>
+    </div>
+  </header>
+
+  <section class="card" aria-labelledby="h-buyin">
+    <h2 id="h-buyin">Buy-in</h2>
+    <label class="field" for="buyin">Amount per buy-in
+      <span class="money"><span>$</span><input id="buyin" type="number" inputmode="decimal" min="0" step="any" value="5"></span>
+    </label>
+  </section>
+
+  <section class="card" aria-labelledby="h-roster">
+    <h2 id="h-roster">Who's playing</h2>
+    <div class="hint" id="sampleHint" hidden>Sample game so you can see how it works. Tap New game at the bottom to start fresh.</div>
+    <div class="chips" id="roster"></div>
+    <button class="btn-primary" id="moveBtn" type="button" disabled>Add to game</button>
+    <form class="add" id="addForm" autocomplete="off">
+      <input id="name" type="text" placeholder="Guest not on the list" aria-label="Guest name" autocapitalize="words" maxlength="30">
+      <button class="btn-quiet" id="addBtn" type="submit">Add guest</button>
+    </form>
+  </section>
+
+  <section class="card" aria-labelledby="h-players">
+    <h2 id="h-players">In the game</h2>
+    <div class="chips" id="tabs"></div>
+    <div id="panel"></div>
+    <div class="totals" id="totals"></div>
+  </section>
+
+  <button class="btn-primary" id="calc" type="button">Calculate</button>
+
+  <section class="card results" id="results" aria-live="polite" hidden></section>
+
+  <div class="foot"><button class="btn-quiet" id="reset" type="button">New game</button></div>
+</main>
+
+<script>
+(function () {
+  var KEY = 'buyin-ledger-right-v1';
+  var $ = function (id) { return document.getElementById(id); };
+
+  // Edit this list to change the names shown under "Who's playing".
+  var ROSTER = ['Arun', 'Amit', 'Sarat', 'Anand', 'Aniket', 'Anup', 'Gopal', 'Jitin', 'Lokesh', 'Rajeev', 'Navneet', 'Nachiket', 'Sanjeev', 'Shailesh'];
+
+  function sample() {
+    return {
+      buyin: '5', sample: false, nextId: 1, sel: null,
+      players: []
+    };
+  }
+  function load() {
+    try {
+      var s = JSON.parse(localStorage.getItem(KEY));
+      if (s && Array.isArray(s.players)) return s;
+    } catch (e) {}
+    return sample();
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+  var state = load();
+  var pending = [];
+  var removeArmed = false, removeTimer = null;
+
+  function cents(v) { var n = parseFloat(v); return isNaN(n) ? 0 : Math.round(n * 100); }
+  function fmt(c) {
+    var neg = c < 0, a = Math.abs(c);
+    var s = a % 100 === 0 ? String(a / 100) : (a / 100).toFixed(2);
+    return (neg ? '\u2212' : '') + '$' + s;
+  }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+
+  function touched() {
+    state.sample = false;
+    $('results').hidden = true;
+    save();
+  }
+
+  function inGame(name) {
+    var n = name.toLowerCase();
+    return state.players.filter(function (p) { return p.name.toLowerCase() === n; })[0];
+  }
+  function selected() {
+    var p = state.players.filter(function (q) { return q.id === state.sel; })[0];
+    if (!p && state.players.length) { p = state.players[0]; state.sel = p.id; }
+    if (!p) state.sel = null;
+    return p;
+  }
+  function addPlayer(name) {
+    var p = { id: state.nextId++, name: name, count: 1, cash: '' };
+    state.players.push(p);
+    return p;
+  }
+
+  function updateTotals() {
+    var b = cents(state.buyin);
+    var buyins = state.players.reduce(function (s, p) { return s + p.count; }, 0);
+    $('pot').textContent = fmt(buyins * b);
+    $('totals').textContent = '';
+    $('totals').appendChild(el('span', '', state.players.length + (state.players.length === 1 ? ' player' : ' players')));
+    $('totals').appendChild(el('span', '', buyins + (buyins === 1 ? ' buy-in' : ' buy-ins')));
+    $('sampleHint').hidden = !state.sample;
+  }
+
+  function renderRoster() {
+    var box = $('roster');
+    box.textContent = '';
+    var av = ROSTER.filter(function (n) { return !inGame(n); });
+    pending = pending.filter(function (n) { return av.indexOf(n) > -1; });
+    if (!av.length) box.appendChild(el('div', 'empty', 'Everyone on the list is in the game.'));
+    av.forEach(function (name) {
+      var chip = el('button', 'chip', name);
+      chip.type = 'button';
+      chip.dataset.name = name;
+      chip.setAttribute('aria-pressed', pending.indexOf(name) > -1 ? 'true' : 'false');
+      box.appendChild(chip);
+    });
+    var mv = $('moveBtn');
+    mv.disabled = !pending.length;
+    mv.textContent = pending.length ? 'Add ' + pending.length + ' to game' : 'Add to game';
+  }
+
+  function renderTabs() {
+    var box = $('tabs');
+    box.textContent = '';
+    selected();
+    if (!state.players.length) {
+      box.appendChild(el('div', 'empty', 'Pick names above and tap Add to game.'));
+      return;
+    }
+    state.players.forEach(function (p) {
+      var t = el('button', 'chip', p.name);
+      t.type = 'button';
+      t.dataset.id = p.id;
+      t.setAttribute('aria-pressed', p.id === state.sel ? 'true' : 'false');
+      t.appendChild(el('span', 'badge', '\u00d7' + p.count));
+      box.appendChild(t);
+    });
+  }
+
+  function renderPanel() {
+    clearTimeout(removeTimer);
+    removeArmed = false;
+    var panel = $('panel');
+    panel.textContent = '';
+    var p = selected();
+    if (!p) return;
+    var b = cents(state.buyin);
+
+    var card = el('div', 'player');
+    var top = el('div', 'p-top');
+    top.appendChild(el('span', 'p-name', p.name));
+    top.appendChild(el('span', 'p-amt', fmt(p.count * b)));
+
+    var bot = el('div', 'p-bot');
+    var st = el('div', 'stepper');
+    var dec = el('button', '', '\u2212'); dec.type = 'button'; dec.dataset.act = 'dec'; dec.setAttribute('aria-label', 'One fewer buy-in for ' + p.name);
+    var out = el('output', '', String(p.count)); out.setAttribute('aria-label', 'Buy-ins for ' + p.name);
+    var inc = el('button', '', '+'); inc.type = 'button'; inc.dataset.act = 'inc'; inc.setAttribute('aria-label', 'One more buy-in for ' + p.name);
+    st.appendChild(dec); st.appendChild(out); st.appendChild(inc);
+
+    var cash = el('label', 'field cash', 'Final amount');
+    cash.htmlFor = 'cash-' + p.id;
+    var money = el('span', 'money');
+    money.appendChild(el('span', '', '$'));
+    var inp = document.createElement('input');
+    inp.id = 'cash-' + p.id; inp.type = 'number'; inp.inputMode = 'decimal'; inp.min = '0'; inp.step = 'any';
+    inp.placeholder = '0'; inp.value = p.cash; inp.className = 'cash-input';
+    money.appendChild(inp); cash.appendChild(money);
+    bot.appendChild(st); bot.appendChild(cash);
+
+    var rm = el('button', 'btn-quiet', 'Remove from game');
+    rm.type = 'button'; rm.dataset.act = 'remove'; rm.id = 'rmBtn';
+
+    card.appendChild(top); card.appendChild(bot); card.appendChild(rm);
+    panel.appendChild(card);
+  }
+
+  function renderAll() {
+    renderRoster();
+    renderTabs();
+    renderPanel();
+    updateTotals();
+  }
+
+  $('buyin').value = state.buyin;
+  $('buyin').addEventListener('input', function (e) {
+    state.buyin = e.target.value;
+    touched();
+    renderPanel();
+    updateTotals();
+  });
+
+  $('roster').addEventListener('click', function (e) {
+    var chip = e.target.closest('.chip');
+    if (!chip) return;
+    var name = chip.dataset.name;
+    var i = pending.indexOf(name);
+    if (i > -1) pending.splice(i, 1); else pending.push(name);
+    renderRoster();
+  });
+
+  $('moveBtn').addEventListener('click', function () {
+    if (!pending.length) return;
+    var first = null;
+    pending.forEach(function (name) {
+      if (inGame(name)) return;
+      var p = addPlayer(name);
+      if (!first) first = p;
+    });
+    pending = [];
+    if (first) state.sel = first.id;
+    touched();
+    renderAll();
+  });
+
+  $('addForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var input = $('name');
+    var name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    var p = inGame(name) || addPlayer(name);
+    state.sel = p.id;
+    input.value = '';
+    touched();
+    renderAll();
+  });
+
+  $('tabs').addEventListener('click', function (e) {
+    var t = e.target.closest('.chip');
+    if (!t) return;
+    state.sel = Number(t.dataset.id);
+    save();
+    renderTabs();
+    renderPanel();
+  });
+
+  $('panel').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    var p = selected();
+    if (!p) return;
+    var act = btn.dataset.act;
+    if (act === 'inc' || act === 'dec') {
+      p.count = act === 'inc' ? p.count + 1 : Math.max(1, p.count - 1);
+      touched();
+      renderTabs();
+      renderPanel();
+      updateTotals();
+      return;
+    }
+    if (act === 'remove') {
+      if (!removeArmed) {
+        removeArmed = true;
+        btn.textContent = 'Tap again to remove ' + p.name;
+        removeTimer = setTimeout(function () {
+          removeArmed = false;
+          var b = $('rmBtn');
+          if (b) b.textContent = 'Remove from game';
+        }, 3000);
+        return;
+      }
+      state.players = state.players.filter(function (q) { return q !== p; });
+      state.sel = null;
+      touched();
+      renderAll();
+    }
+  });
+
+  $('panel').addEventListener('input', function (e) {
+    if (!e.target.classList.contains('cash-input')) return;
+    var p = selected();
+    if (p) { p.cash = e.target.value; touched(); }
+  });
+
+  function calculate() {
+    var b = cents(state.buyin);
+    var box = $('results');
+    box.textContent = '';
+    box.hidden = false;
+    box.appendChild(el('h2', '', 'Settle up'));
+
+    if (!state.players.length) {
+      box.appendChild(el('div', 'empty', 'Add players before calculating.'));
+      return;
+    }
+
+    var rows = state.players.map(function (p) {
+      var buy = p.count * b, cash = cents(p.cash);
+      return { name: p.name, buy: buy, cash: cash, net: cash - buy };
+    });
+    var pot = rows.reduce(function (s, r) { return s + r.buy; }, 0);
+    var out = rows.reduce(function (s, r) { return s + r.cash; }, 0);
+
+    var diff = out - pot;
+    if (diff !== 0) {
+      box.appendChild(el('div', 'warn',
+        (diff > 0 ? 'Excess of ' + fmt(diff) : 'Deficit of ' + fmt(-diff)) +
+        '. Final amounts add up to ' + fmt(out) + ' but the pot is ' + fmt(pot) + '.'));
+    }
+
+    var nets = el('ul', 'nets');
+    rows.forEach(function (r) {
+      var li = el('li');
+      var left = el('span');
+      left.appendChild(document.createTextNode(r.name));
+      left.appendChild(el('span', 'sub', 'In ' + fmt(r.buy) + ' \u00b7 out ' + fmt(r.cash)));
+      li.appendChild(left);
+      li.appendChild(el('span', 'amt ' + (r.net > 0 ? 'pos' : r.net < 0 ? 'neg' : ''), (r.net > 0 ? '+' : '') + fmt(r.net)));
+      nets.appendChild(li);
+    });
+    box.appendChild(nets);
+
+  }
+  $('calc').addEventListener('click', function () {
+    calculate();
+    $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  var resetTimer = null;
+  $('reset').addEventListener('click', function () {
+    var btn = $('reset');
+    if (!resetTimer) {
+      btn.textContent = 'Tap again to clear everything';
+      resetTimer = setTimeout(function () { btn.textContent = 'New game'; resetTimer = null; }, 3000);
+      return;
+    }
+    clearTimeout(resetTimer); resetTimer = null;
+    btn.textContent = 'New game';
+    state = { buyin: state.buyin, sample: false, nextId: 1, sel: null, players: [] };
+    pending = [];
+    $('results').hidden = true;
+    save();
+    renderAll();
+  });
+
+  renderAll();
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
