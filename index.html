@@ -82,11 +82,11 @@
   .eyebrow { color: var(--muted); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
 
   .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
-  .pots { display: flex; align-items: flex-end; justify-content: flex-end; gap: 18px; flex-wrap: wrap; }
-  .pot { text-align: right; }
-  .pot .num.final { color: var(--fg); }
-  .pot .num.final.ok { color: var(--good); }
-  .pot .num { font-family: var(--font-display); font-size: 40px; font-weight: 700; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .stats { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; display: flex; align-items: flex-end; gap: 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 16px; box-shadow: 0 -8px 0 var(--bg); }
+  .stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .stat .num { font-family: var(--font-display); font-size: 36px; font-weight: 700; line-height: 1.05; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .stat .num.final { color: var(--fg); }
+  .stat .num.final.ok { color: var(--good); }
 
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 
@@ -156,17 +156,18 @@
       <div class="eyebrow">Home game</div>
       <h1>Buy-In Ledger</h1>
     </div>
-    <div class="pots">
-      <div class="pot">
-        <div class="eyebrow">Pot</div>
-        <div class="num" id="pot">$0</div>
-      </div>
-      <div class="pot" id="finalBox" hidden>
-        <div class="eyebrow">Final</div>
-        <div class="num final" id="finalSum">$0</div>
-      </div>
-    </div>
   </header>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="eyebrow">Pot</div>
+      <div class="num" id="pot">$0</div>
+    </div>
+    <div class="stat" id="finalBox" hidden>
+      <div class="eyebrow">Final</div>
+      <div class="num final" id="finalSum">$0</div>
+    </div>
+  </div>
 
   <section class="card" aria-labelledby="h-buyin">
     <h2 id="h-buyin">Buy-in</h2>
