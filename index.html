@@ -82,7 +82,10 @@
   .eyebrow { color: var(--muted); font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
 
   .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+  .pots { display: flex; align-items: flex-end; justify-content: flex-end; gap: 18px; flex-wrap: wrap; }
   .pot { text-align: right; }
+  .pot .num.final { color: var(--fg); }
+  .pot .num.final.ok { color: var(--good); }
   .pot .num { font-family: var(--font-display); font-size: 40px; font-weight: 700; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
 
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -109,6 +112,8 @@
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip { background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; min-height: 44px; padding: 0 16px; font-size: 17px; font-weight: 500; }
   .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+  .chip.tab { border-radius: 16px; padding-block: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.15; }
+  .chip-sub { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; opacity: 0.9; }
   .badge { margin-left: 8px; font-family: var(--font-display); font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; opacity: 0.85; }
 
   .player { border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 14px; background: var(--bg); }
@@ -151,9 +156,15 @@
       <div class="eyebrow">Home game</div>
       <h1>Buy-In Ledger</h1>
     </div>
-    <div class="pot">
-      <div class="eyebrow">Pot</div>
-      <div class="num" id="pot">$0</div>
+    <div class="pots">
+      <div class="pot">
+        <div class="eyebrow">Pot</div>
+        <div class="num" id="pot">$0</div>
+      </div>
+      <div class="pot" id="finalBox" hidden>
+        <div class="eyebrow">Final</div>
+        <div class="num final" id="finalSum">$0</div>
+      </div>
     </div>
   </header>
 
@@ -166,7 +177,6 @@
 
   <section class="card" aria-labelledby="h-roster">
     <h2 id="h-roster">Who's playing</h2>
-    <div class="hint" id="sampleHint" hidden>Sample game so you can see how it works. Tap New game at the bottom to start fresh.</div>
     <div class="chips" id="roster"></div>
     <button class="btn-primary" id="moveBtn" type="button" disabled>Add to game</button>
     <form class="add" id="addForm" autocomplete="off">
@@ -205,12 +215,12 @@
   }
   function load() {
     try {
-      var s = JSON.parse(localStorage.getItem(KEY));
+      var s = JSON.parse(sessionStorage.getItem(KEY));
       if (s && Array.isArray(s.players)) return s;
     } catch (e) {}
     return sample();
   }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  function save() { try { sessionStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
 
   var state = load();
   var pending = [];
@@ -251,14 +261,23 @@
     return p;
   }
 
+  function hasFinal(p) {
+    return String(p.cash).trim() !== '' && !isNaN(parseFloat(p.cash));
+  }
+
   function updateTotals() {
     var b = cents(state.buyin);
     var buyins = state.players.reduce(function (s, p) { return s + p.count; }, 0);
-    $('pot').textContent = fmt(buyins * b);
+    var pot = buyins * b;
+    $('pot').textContent = fmt(pot);
+    var withFinal = state.players.filter(hasFinal);
+    var finalSum = withFinal.reduce(function (s, p) { return s + cents(p.cash); }, 0);
+    $('finalBox').hidden = !withFinal.length;
+    $('finalSum').textContent = fmt(finalSum);
+    $('finalSum').classList.toggle('ok', withFinal.length > 0 && finalSum === pot);
     $('totals').textContent = '';
     $('totals').appendChild(el('span', '', state.players.length + (state.players.length === 1 ? ' player' : ' players')));
     $('totals').appendChild(el('span', '', buyins + (buyins === 1 ? ' buy-in' : ' buy-ins')));
-    $('sampleHint').hidden = !state.sample;
   }
 
   function renderRoster() {
@@ -288,11 +307,14 @@
       return;
     }
     state.players.forEach(function (p) {
-      var t = el('button', 'chip', p.name);
+      var t = el('button', 'chip tab');
       t.type = 'button';
       t.dataset.id = p.id;
       t.setAttribute('aria-pressed', p.id === state.sel ? 'true' : 'false');
-      t.appendChild(el('span', 'badge', '\u00d7' + p.count));
+      var main = el('span', 'chip-main', p.name);
+      main.appendChild(el('span', 'badge', '\u00d7' + p.count));
+      t.appendChild(main);
+      if (hasFinal(p)) t.appendChild(el('span', 'chip-sub', 'Final ' + fmt(cents(p.cash))));
       box.appendChild(t);
     });
   }
@@ -429,7 +451,12 @@
   $('panel').addEventListener('input', function (e) {
     if (!e.target.classList.contains('cash-input')) return;
     var p = selected();
-    if (p) { p.cash = e.target.value; touched(); }
+    if (p) {
+      p.cash = e.target.value;
+      touched();
+      renderTabs();
+      updateTotals();
+    }
   });
 
   function calculate() {
